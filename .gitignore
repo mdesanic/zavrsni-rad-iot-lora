@@ -1,6 +1,3 @@
 *.cnf
 *.index
 *.ib_buffer_pool
-
-# Potentially exclude mysql.sock (investigate further)
-#docker/config/mysql/mysql.sock
