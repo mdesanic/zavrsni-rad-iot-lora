@@ -6,7 +6,8 @@ export default async function getLocations (request, response) {
     let ddao = new DatabaseDAO();
     console.log(ddao);
     try {
-        let locations = await ddao.getAllLocations();
+        let locationsResponse = await ddao.getAllLocations();
+        let locations = locationsResponse[0]; // Extract location data from the first element
         response.status(200);
         response.send(JSON.stringify(locations));
     }

@@ -2,3 +2,4 @@
 *.index
 *.ib_buffer_pool
 node_modules/
+docker/config
