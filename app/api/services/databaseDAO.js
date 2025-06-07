@@ -6,21 +6,18 @@ class DatabaseDAO {
         this.database = new Database();
     }
 
-    getAllLocations = async function () {
+    async getAllLocations() {
         try {
             await this.database.connect();
-            console.log('Database connected');
-
-            let sql = "SELECT * FROM Location;";
-            let data = await this.database.runQuery(sql, []);
-
+            const sql = "SELECT * FROM Locations;";
+            const data = await this.database.runQuery(sql);
             this.database.disconnect();
             return data;
         } catch (error) {
             console.error('Error in getAllLocations:', error);
             throw error;
-        }
     }
+}
 }
 
 module.exports = DatabaseDAO;

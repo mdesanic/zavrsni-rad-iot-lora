@@ -1,10 +1,11 @@
 const mysql = require('mysql2/promise');
 
 const config = {
-  host: 'iot-mysql',
-  user: 'root',
-  password: 'password',
-  database: 'mydb'
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || 'password',
+  database: process.env.DB_DATABASE || 'water_temp_db',
+  port: 3306
 };
 
 class Database {
@@ -38,22 +39,19 @@ class Database {
     }
   }
 
-  runQuery(sql, params = []) {
-    if (!this.connection) {
-      throw new Error('Database connection not established');
-    }
-
-    try {
-      const results = this.connection.query(sql, params, function(err, rows, fields) {
-        if (err) throw err;
-        return { rows, fields };
-      });
-      return results;
-    } catch (error) {
-      console.error('Error running query:', error);
-      throw error;
-    }
+  async runQuery(sql, params = []) {
+  if (!this.connection) {
+    throw new Error('Database connection not established');
   }
+
+  try {
+    const [rows] = await this.connection.query(sql, params);
+    return rows;
+  } catch (error) {
+    console.error('Error running query:', error);
+    throw error;
+  }
+}
 }
 
 module.exports = Database;
