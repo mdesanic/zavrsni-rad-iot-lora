@@ -1,23 +1,41 @@
-version: "3.7"
-services: 
+version: '3.8'
+
+services:
   mysql:
-    image: mysql:latest
+    image: mysql:8.0
     container_name: iot-mysql
+    restart: unless-stopped
+    env_file:
+      - ./.env
     ports:
-      - "3306:3306"
-    environment:
-      - MYSQL_ROOT_PASSWORD=password
+      - "${MYSQL_PORT}:3306"
     volumes:
-      - './docker/config/mysql:/var/lib/mysql'
-  app:
-    image: app
-    container_name: nodejs-server
+      - mysql-data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d  # Tvoje init.sql
+    networks:
+      - iot-network
+
+  backend:
     build:
-      context: app
-      dockerfile: ./Dockerfile
-    environment:
-      NODE_ENV: production
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: iot-backend
+    restart: unless-stopped
     ports:
-      - 3000:3000
-  
-  
+      - "3000:3000"
+    environment:
+      - DB_HOST=iot-mysql
+      - DB_USER=${MYSQL_USER}
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+      - DB_DATABASE=${MYSQL_DATABASE}
+    depends_on:
+      - mysql
+    networks:
+      - iot-network
+
+volumes:
+  mysql-data:
+
+networks:
+  iot-network:
+    driver: bridge

@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "WaPamDog",
+			"path": "embedded/WaPamDog"
+		},
+		{
+			"name": "Router Device",
+			"path": "embedded/Router Device/Router Device"
+		}
+	],
+	"settings": {}
+}
