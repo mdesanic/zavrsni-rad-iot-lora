@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import DatabaseDAO from './services/databaseDAO.js';
+import { DatabaseDAO } from './services/databaseDAO.js';
 
 export default async function getLocations (request, response) {
     response.type("application/json");

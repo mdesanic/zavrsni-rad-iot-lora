@@ -1,11 +1,11 @@
-const mysql = require('mysql2/promise');
+import mysql from 'mysql2/promise';
 
 const config = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'password',
   database: process.env.DB_DATABASE || 'water_temp_db',
-  port: 3306
+  port: 3306,
 };
 
 class Database {
@@ -22,12 +22,11 @@ class Database {
       throw error;
     }
   }
-  
 
   disconnect() {
     if (this.connection) {
       try {
-        this.connection.end(function(err) {
+        this.connection.end((err) => {
           if (err) throw err;
           console.log('Disconnected from database!');
         });
@@ -40,18 +39,18 @@ class Database {
   }
 
   async runQuery(sql, params = []) {
-  if (!this.connection) {
-    throw new Error('Database connection not established');
-  }
+    if (!this.connection) {
+      throw new Error('Database connection not established');
+    }
 
-  try {
-    const [rows] = await this.connection.query(sql, params);
-    return rows;
-  } catch (error) {
-    console.error('Error running query:', error);
-    throw error;
+    try {
+      const [rows] = await this.connection.query(sql, params);
+      return rows;
+    } catch (error) {
+      console.error('Error running query:', error);
+      throw error;
+    }
   }
 }
-}
 
-module.exports = Database;
+export { Database };
