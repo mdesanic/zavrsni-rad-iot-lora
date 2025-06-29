@@ -16,7 +16,6 @@ public:
         LoRa.setPins(18, 14, 26);  // NSS, RST, DIO0
         if (!LoRa.begin(433E6)) {
             Serial.println("LoRa init failed!");
-            while (1);
         }
         
         // Optimized settings for faster transmission
