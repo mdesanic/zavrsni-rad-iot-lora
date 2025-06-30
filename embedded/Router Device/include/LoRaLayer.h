@@ -1,61 +1,71 @@
 #ifndef LORALAYER_H
 #define LORALAYER_H
 
+#include <SPI.h>
 #include <LoRa.h>
 
-class LoRaConnection {
+class LoRaLayer {
 private:
-    unsigned long _timeout = 5000; // 5 second timeout
+    // Configuration variables
+    uint8_t _nssPin;
+    uint8_t _resetPin;
+    uint8_t _dio0Pin;
+    long _frequency;
+    uint8_t _syncWord;
+    int _txPower;
+    
+    // SPI pins (set during begin)
+    uint8_t _sckPin;
+    uint8_t _misoPin;
+    uint8_t _mosiPin;
+
 public:
-    void setTimeout(unsigned long timeout) {
-        _timeout = timeout;
-    }
+    // Constructor (sets basic parameters)
+    LoRaLayer(uint8_t nss, uint8_t rst, uint8_t dio0, 
+             long freq = 433E6, uint8_t sync = 0xF3, int power = 20)
+        : _nssPin(nss), _resetPin(rst), _dio0Pin(dio0),
+          _frequency(freq), _syncWord(sync), _txPower(power) {}
 
-    void begin() {
-        // Heltec WiFi LoRa 32 V2 Default Pins
-        LoRa.setPins(18, 14, 26);  // NSS, RST, DIO0
-        if (!LoRa.begin(433E6)) {
-            Serial.println("LoRa init failed!");
+    // Initialize LoRa with custom SPI pins
+    bool begin(uint8_t sck, uint8_t miso, uint8_t mosi) {
+        _sckPin = sck;
+        _misoPin = miso;
+        _mosiPin = mosi;
+        
+        SPI.begin(_sckPin, _misoPin, _mosiPin, _nssPin);
+        LoRa.setPins(_nssPin, _resetPin, _dio0Pin);
+        
+        if (!LoRa.begin(_frequency)) {
+            return false;
         }
         
-        // Optimized settings for faster transmission
-        LoRa.setSpreadingFactor(7);      // SF7 (fastest)
-        LoRa.setSignalBandwidth(250E3);  // 250kHz (faster bandwidth)
-        LoRa.setCodingRate4(5);          // 4/5 (less error correction)
-        LoRa.setSyncWord(0xF3);
-        LoRa.enableCrc();
-        
-        Serial.println("LoRa initialized with timeout support!");
+        LoRa.setSyncWord(_syncWord);
+        LoRa.setTxPower(_txPower);
+        return true;
     }
 
-    bool send(String message) {
+    // Send string data
+    bool send(const String &data) {
         LoRa.beginPacket();
-        LoRa.print(message);
-        int result = LoRa.endPacket(true); // true = async
-
-        unsigned long start = millis();
-        while (LoRa.beginPacket()) {
-            if (millis() - start > _timeout) {
-                Serial.println("LoRa send timeout!");
-                LoRa.idle(); 
-                return false;
-            }
-            delay(10);
-        }
-        return result == 1;
+        LoRa.print(data);
+        return LoRa.endPacket();
     }
-
 
     String receive() {
         if (LoRa.parsePacket()) {
-            String incoming = "";
+            String packet;
             while (LoRa.available()) {
-                incoming += (char)LoRa.read();
+                packet += (char)LoRa.read();
             }
-            return incoming;
+            return packet;
         }
         return "";
     }
-};
 
+    bool sendACK() {
+        LoRa.beginPacket();
+        LoRa.print("ACK");
+        return LoRa.endPacket();
+    }
+};
 #endif
