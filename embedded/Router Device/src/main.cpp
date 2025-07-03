@@ -1,26 +1,23 @@
 #include <GatewayLayer.h>
 #include <DisplayLayer.h>
-#include <LoRaLayer.h>
 
-// LilyGO TTGO T3 v1.6.1 pins
-#define LORA_SCK    5
-#define LORA_MISO  19
-#define LORA_MOSI  27
-#define LORA_NSS   18
-#define LORA_RST   23  // Different from sender!
-#define LORA_DIO0  26
-#define LORA_BAND 433E6
+// Display pins
 #define OLED_SDA    22
 #define OLED_SCL    21
 #define OLED_RST    4
 
-const char* WIFI_SSID = "Tele2_i_ovce_i_novce";
-const char* WIFI_PASS = "4ESN5aJ5Y5";
-const String SERVER_IP = "192.168.1.66"; 
+// WiFi Config
+const char* WIFI_SSID = "test_environment";
+const char* WIFI_PASS = "nijemidobro";
+const String SERVER_IP = "172.20.10.11";
 
 DisplayLayer display(OLED_SDA, OLED_SCL, OLED_RST);
 GatewayLayer gateway(WIFI_SSID, WIFI_PASS, SERVER_IP);
-LoRaLayer lora(LORA_NSS, LORA_RST, LORA_DIO0, LORA_BAND);
+
+// Mock device configuration
+const String MOCK_MAC = "D4:E5:F6:A7:B8:C9";
+const String SENSOR1_ADDRESS = "2874FA8400000096";
+const String SENSOR2_ADDRESS = "284FE3840000000C";
 
 void displayError(const String &msg) {
   display.clear();
@@ -28,43 +25,60 @@ void displayError(const String &msg) {
   display.println("ERROR:");
   display.println(msg);
   display.update(true);
-  while(1); // Halt on error
+  delay(5000); // Show error for 5 sec then continue
+}
+
+void displayStatus(const String &msg) {
+  display.clear();
+  display.setCursor(0, 0);
+  display.println(msg);
+  display.update(true);
 }
 
 void setup() {
   Serial.begin(115200);
   
-  // Initialize LoRa (using same layer as transmitter)
-  if (!lora.begin(LORA_SCK, LORA_MISO, LORA_MOSI)) {
-    Serial.println("LoRa init failed!");
+  // Initialize display
+  if (!display.begin()) {
+    Serial.println("Display init failed!");
     while(1);
   }
-  Serial.println("LoRa Receiver Ready");
 
   // Initialize WiFi
   if (!gateway.begin()) {
-    Serial.println("WiFi FAILED");
-    while(1);
+    displayError("WiFi FAILED");
   }
+
+  // Register mock device (only once)
+  if (!gateway.registerDevice()) {
+    displayError("Registration failed");
+  }
+
+  displayStatus("Gateway Ready");
+  delay(2000);
 }
 
 void loop() {
-  // 1. Receive LoRa packet
-  String packet = lora.receive();
-  
-  if (packet != "") {
-    Serial.println("Received: " + packet);
-    
-    // 2. Forward to server
-    if (gateway.sendToServer(packet)) {
-      Serial.println("Forwarded to server");
-      
-      // 3. Send ACK back
-      if (lora.sendACK()) {
-        Serial.println("ACK sent");
-      }
-    }
+  // Generate mock temperatures
+  float temp1 = 20.0 + random(0, 50)/10.0; // 20.0-25.0°C
+  float temp2 = 15.0 + random(0, 60)/10.0; // 15.0-21.0°C
+
+  // Send sensor 1 data
+  if (!gateway.sendSensorData(MOCK_MAC, SENSOR1_ADDRESS, temp1)) {
+    displayError("Sensor 1 send failed");
   }
-  
-  delay(10);
+
+  // Send sensor 2 data
+  if (!gateway.sendSensorData(MOCK_MAC, SENSOR2_ADDRESS, temp2)) {
+    displayError("Sensor 2 send failed");
+  }
+
+  // Display status
+  display.clear();
+  display.setCursor(0, 0);
+  display.println("Last Sent Data:");
+  display.println("Server: " + SERVER_IP);
+  display.update(true);
+
+  delay(10000); // Send every 10 seconds
 }
