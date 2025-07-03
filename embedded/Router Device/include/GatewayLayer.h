@@ -10,7 +10,7 @@ private:
     const char* ssid;
     const char* password;
     const String baseURL;
-    String deviceMac;  // Transmitter MAC (gateway MAC)
+    String deviceMac; 
 
     void printJsonPayload(const DynamicJsonDocument& doc) {
         String payload;
@@ -82,9 +82,9 @@ public:
         http.begin(baseURL + "/readings");
         http.addHeader("Content-Type", "application/json");
 
-        DynamicJsonDocument doc(512);  // Increased size for additional fields
-        doc["transmitter_mac"] = deviceMac;  // Gateway/transmitter MAC
-        doc["sensor_device_mac"] = sensorDeviceMac;  // Sensor device MAC
+        DynamicJsonDocument doc(512);
+        doc["transmitter_mac"] = deviceMac;
+        doc["sensor_device_mac"] = sensorDeviceMac;
         doc["sensor_address"] = sensorAddress;
         doc["temperature"] = temp;
         doc["timestamp"] = millis();

@@ -1,23 +1,27 @@
 #include <GatewayLayer.h>
 #include <DisplayLayer.h>
+#include <LoRaLayer.h> 
+#include <ArduinoJson.h> 
 
-// Display pins
-#define OLED_SDA    22
-#define OLED_SCL    21
-#define OLED_RST    4
+#define OLED_SDA     22
+#define OLED_SCL     21
+#define OLED_RST     4
 
-// WiFi Config
 const char* WIFI_SSID = "test_environment";
 const char* WIFI_PASS = "nijemidobro";
 const String SERVER_IP = "172.20.10.11";
 
+#define LORA_SCK     5
+#define LORA_MISO   19
+#define LORA_MOSI   27
+#define LORA_NSS    18
+#define LORA_RST    14
+#define LORA_DIO0   26
+#define LORA_BAND 433E6
+
 DisplayLayer display(OLED_SDA, OLED_SCL, OLED_RST);
 GatewayLayer gateway(WIFI_SSID, WIFI_PASS, SERVER_IP);
-
-// Mock device configuration
-const String MOCK_MAC = "D4:E5:F6:A7:B8:C9";
-const String SENSOR1_ADDRESS = "2874FA8400000096";
-const String SENSOR2_ADDRESS = "284FE3840000000C";
+LoRaLayer loraReceiver(LORA_NSS, LORA_RST, LORA_DIO0, LORA_BAND);
 
 void displayError(const String &msg) {
   display.clear();
@@ -25,7 +29,7 @@ void displayError(const String &msg) {
   display.println("ERROR:");
   display.println(msg);
   display.update(true);
-  delay(5000); // Show error for 5 sec then continue
+  delay(5000); 
 }
 
 void displayStatus(const String &msg) {
@@ -38,20 +42,24 @@ void displayStatus(const String &msg) {
 void setup() {
   Serial.begin(115200);
   
-  // Initialize display
   if (!display.begin()) {
     Serial.println("Display init failed!");
     while(1);
   }
+  display.showSplash();
+  displayStatus("Initializing...");
 
-  // Initialize WiFi
   if (!gateway.begin()) {
     displayError("WiFi FAILED");
   }
 
-  // Register mock device (only once)
   if (!gateway.registerDevice()) {
-    displayError("Registration failed");
+    displayError("Gateway registration failed");
+  }
+
+  SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_NSS);
+  if (!loraReceiver.begin(LORA_SCK, LORA_MISO, LORA_MOSI)) {
+    displayError("LoRa Receiver FAILED!");
   }
 
   displayStatus("Gateway Ready");
@@ -59,26 +67,59 @@ void setup() {
 }
 
 void loop() {
-  // Generate mock temperatures
-  float temp1 = 20.0 + random(0, 50)/10.0; // 20.0-25.0°C
-  float temp2 = 15.0 + random(0, 60)/10.0; // 15.0-21.0°C
+  String loRaPayload = loraReceiver.receive();
 
-  // Send sensor 1 data
-  if (!gateway.sendSensorData(MOCK_MAC, SENSOR1_ADDRESS, temp1)) {
-    displayError("Sensor 1 send failed");
+  if (loRaPayload.length() > 0) {
+    DynamicJsonDocument doc(512);
+    DeserializationError error = deserializeJson(doc, loRaPayload);
+
+    if (error) {
+      Serial.print(F("deserializeJson() failed: "));
+      Serial.println(error.f_str());
+      displayError("JSON Parse Err");
+      delay(2000);
+      return;
+    }
+
+    String sensorDeviceMac = doc["mac"].as<String>();
+    JsonArray sensorsArray = doc["s"].as<JsonArray>();
+
+    if (sensorDeviceMac.length() > 0 && !sensorsArray.isNull()) {
+      display.clear();
+      display.setCursor(0, 0);
+      display.println("Data Received:");
+      display.println("MAC: " + sensorDeviceMac);
+      display.update(true);
+      delay(1000);
+
+      for (JsonObject sensorData : sensorsArray) {
+        String sensorAddress = sensorData["a"].as<String>();
+        float temperature = sensorData["t"].as<float>();
+
+        if (!isnan(temperature)) {
+            Serial.printf("Sending Data: MAC=%s, Addr=%s, Temp=%.2f\n",
+                          sensorDeviceMac.c_str(), sensorAddress.c_str(), temperature);
+            
+            if (!gateway.sendSensorData(sensorDeviceMac, sensorAddress, temperature)) {
+              displayError("HTTP Send Failed");
+              delay(2000);
+            } else {
+              Serial.println("Data sent successfully to backend.");
+              displayStatus("Data Sent OK");
+            }
+        } else {
+            Serial.printf("Sensor %s on device %s has null/invalid temperature. Not sending.\n",
+                          sensorAddress.c_str(), sensorDeviceMac.c_str());
+            displayStatus("Invalid Temp Skipped");
+        }
+        delay(500);
+      }
+    } else {
+      Serial.println("Invalid LoRa payload structure.");
+      displayError("Invalid LoRa");
+      delay(2000);
+    }
   }
 
-  // Send sensor 2 data
-  if (!gateway.sendSensorData(MOCK_MAC, SENSOR2_ADDRESS, temp2)) {
-    displayError("Sensor 2 send failed");
-  }
-
-  // Display status
-  display.clear();
-  display.setCursor(0, 0);
-  display.println("Last Sent Data:");
-  display.println("Server: " + SERVER_IP);
-  display.update(true);
-
-  delay(10000); // Send every 10 seconds
+  delay(100); 
 }
