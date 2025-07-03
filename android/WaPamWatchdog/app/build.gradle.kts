@@ -5,7 +5,6 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id ("org.jetbrains.kotlin.plugin.serialization") version "1.9.0"
-// Add this line
 }
 
 android {
